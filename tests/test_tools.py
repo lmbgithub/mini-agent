@@ -16,7 +16,16 @@ SCHEMA = {
 
 def registry():
     r = ToolRegistry()
-    r.register("echo", "echo back", {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]}, lambda text: text)
+    r.register(
+        "echo",
+        "echo back",
+        {
+            "type": "object",
+            "properties": {"text": {"type": "string"}},
+            "required": ["text"],
+        },
+        lambda text: text,
+    )
     return r
 
 
@@ -48,7 +57,12 @@ def test_schema_must_be_object():
 def test_schema_declaring_arg_the_fn_lacks_is_rejected_at_registration():
     r = ToolRegistry()
     with pytest.raises(ValueError, match="does not accept"):
-        r.register("x", "d", {"type": "object", "properties": {"nope": {"type": "string"}}}, lambda text: text)
+        r.register(
+            "x",
+            "d",
+            {"type": "object", "properties": {"nope": {"type": "string"}}},
+            lambda text: text,
+        )
 
 
 def test_fn_requiring_arg_the_schema_lacks_is_rejected():
@@ -59,7 +73,12 @@ def test_fn_requiring_arg_the_schema_lacks_is_rejected():
 
 def test_kwargs_fn_bypasses_signature_check():
     r = ToolRegistry()
-    r.register("x", "d", {"type": "object", "properties": {"a": {"type": "string"}}}, lambda **kw: kw)
+    r.register(
+        "x",
+        "d",
+        {"type": "object", "properties": {"a": {"type": "string"}}},
+        lambda **kw: kw,
+    )
     assert r.call("x", {"a": "1"}) == {"a": "1"}
 
 

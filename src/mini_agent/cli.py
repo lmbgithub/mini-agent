@@ -1,8 +1,8 @@
 """Command line entry point: run a task against a demo toolset."""
+
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 
 from .agent import Agent
@@ -14,36 +14,55 @@ def demo_registry() -> ToolRegistry:
     r = ToolRegistry()
 
     r.register(
-        "add", "Add two numbers together.",
-        {"type": "object",
-         "properties": {"a": {"type": "number"}, "b": {"type": "number"}},
-         "required": ["a", "b"]},
+        "add",
+        "Add two numbers together.",
+        {
+            "type": "object",
+            "properties": {"a": {"type": "number"}, "b": {"type": "number"}},
+            "required": ["a", "b"],
+        },
         lambda a, b: a + b,
     )
     r.register(
-        "word_count", "Count the words in a piece of text.",
-        {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
+        "word_count",
+        "Count the words in a piece of text.",
+        {
+            "type": "object",
+            "properties": {"text": {"type": "string"}},
+            "required": ["text"],
+        },
         lambda text: len(text.split()),
     )
     r.register(
-        "convert_temp", "Convert a temperature between celsius and fahrenheit.",
-        {"type": "object",
-         "properties": {"value": {"type": "number"}, "to": {"type": "string", "enum": ["c", "f"]}},
-         "required": ["value", "to"]},
+        "convert_temp",
+        "Convert a temperature between celsius and fahrenheit.",
+        {
+            "type": "object",
+            "properties": {
+                "value": {"type": "number"},
+                "to": {"type": "string", "enum": ["c", "f"]},
+            },
+            "required": ["value", "to"],
+        },
         lambda value, to: (value * 9 / 5 + 32) if to == "f" else (value - 32) * 5 / 9,
     )
     return r
 
 
 def _rule_backend() -> RuleBackend:
-    return RuleBackend(rules=[
-        (r"(?:add|sum)\D*(\d+(?:\.\d+)?)\D+(\d+(?:\.\d+)?)",
-         lambda m: ToolCall("add", {"a": float(m[1]), "b": float(m[2])})),
-        (r"(\d+(?:\.\d+)?)\s*(?:degrees?\s*)?c(?:elsius)?\b.*fahrenheit",
-         lambda m: ToolCall("convert_temp", {"value": float(m[1]), "to": "f"})),
-        (r"how many words",
-         lambda m: ToolCall("word_count", {"text": m.string})),
-    ])
+    return RuleBackend(
+        rules=[
+            (
+                r"(?:add|sum)\D*(\d+(?:\.\d+)?)\D+(\d+(?:\.\d+)?)",
+                lambda m: ToolCall("add", {"a": float(m[1]), "b": float(m[2])}),
+            ),
+            (
+                r"(\d+(?:\.\d+)?)\s*(?:degrees?\s*)?c(?:elsius)?\b.*fahrenheit",
+                lambda m: ToolCall("convert_temp", {"value": float(m[1]), "to": "f"}),
+            ),
+            (r"how many words", lambda m: ToolCall("word_count", {"text": m.string})),
+        ]
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -56,7 +75,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--json", action="store_true", help="emit the trace as JSONL")
     args = p.parse_args(argv)
 
-    backend = OllamaBackend(model=args.model) if args.backend == "ollama" else _rule_backend()
+    backend = (
+        OllamaBackend(model=args.model) if args.backend == "ollama" else _rule_backend()
+    )
     agent = Agent(backend=backend, tools=demo_registry(), max_steps=args.max_steps)
     result = agent.run(args.task)
 

@@ -4,11 +4,13 @@ The registry is deliberately independent of any model provider: a tool is a
 Python callable plus a parameter schema, and nothing here knows how a model
 asks for it to be called.
 """
+
 from __future__ import annotations
 
 import inspect
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 
 class ToolError(Exception):
@@ -156,7 +158,9 @@ def validate_arguments(
 
     missing = [r for r in required if r not in arguments]
     if missing:
-        raise ToolError(f"{tool_name}: missing required argument(s): {', '.join(missing)}")
+        raise ToolError(
+            f"{tool_name}: missing required argument(s): {', '.join(missing)}"
+        )
 
     if not schema.get("additionalProperties", False):
         extra = sorted(set(arguments) - set(props))
@@ -186,9 +190,7 @@ def _coerce(value: Any, spec: dict[str, Any], *, tool_name: str, field: str) -> 
     # bool is a subclass of int in Python; an integer field must not silently
     # accept True, and a boolean field must not accept 1.
     if declared in ("integer", "number") and isinstance(value, bool):
-        raise ToolError(
-            f"{tool_name}.{field}: expected {declared}, got boolean"
-        )
+        raise ToolError(f"{tool_name}.{field}: expected {declared}, got boolean")
     if declared == "boolean" and not isinstance(value, bool):
         raise ToolError(f"{tool_name}.{field}: expected boolean, got {_typename(value)}")
 

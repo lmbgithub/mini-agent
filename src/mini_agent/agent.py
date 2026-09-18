@@ -13,6 +13,7 @@ Design decisions worth defending in review:
    naive loop is calling the same tool with the same arguments forever; the
    budget alone would mask that as "slow" rather than "stuck".
 """
+
 from __future__ import annotations
 
 import json
@@ -99,7 +100,9 @@ class Agent:
                     {"role": "tool", "name": call.name, "content": observation}
                 )
 
-        trace.record(self.max_steps, "error", f"step budget of {self.max_steps} exhausted")
+        trace.record(
+            self.max_steps, "error", f"step budget of {self.max_steps} exhausted"
+        )
         return AgentResult(None, "max_steps", trace, self.max_steps)
 
     def _invoke(self, call: ToolCall) -> str:

@@ -1,7 +1,5 @@
 import json
 
-import pytest
-
 from mini_agent.cli import demo_registry, main
 
 

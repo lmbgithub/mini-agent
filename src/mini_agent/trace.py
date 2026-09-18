@@ -4,12 +4,14 @@ Every step is recorded as an immutable event. The trace is the artifact you
 actually debug from: without it, a loop that stops early is indistinguishable
 from a loop that answered correctly on the first try.
 """
+
 from __future__ import annotations
 
 import json
 import time
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field
-from typing import Any, Iterator, Literal
+from typing import Any, Literal
 
 EventKind = Literal["user", "model", "tool_call", "observation", "final", "error"]
 
@@ -34,7 +36,9 @@ class Trace:
     events: list[Event] = field(default_factory=list)
     _t0: float = field(default_factory=time.perf_counter, repr=False)
 
-    def record(self, step: int, kind: EventKind, content: Any, name: str | None = None) -> Event:
+    def record(
+        self, step: int, kind: EventKind, content: Any, name: str | None = None
+    ) -> Event:
         ev = Event(
             step=step,
             kind=kind,
@@ -91,7 +95,11 @@ class Trace:
             label = f"{glyph.get(e.kind, '·')} {e.kind}"
             if e.name:
                 label += f"[{e.name}]"
-            body = e.content if isinstance(e.content, str) else json.dumps(e.content, default=str)
+            body = (
+                e.content
+                if isinstance(e.content, str)
+                else json.dumps(e.content, default=str)
+            )
             body = body if len(body) <= 160 else body[:157] + "..."
             lines.append(f"{e.step:>2} {e.elapsed_ms:>8.1f}ms {label:<22} {body}")
         return "\n".join(lines)

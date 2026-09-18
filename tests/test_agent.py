@@ -1,17 +1,21 @@
-import pytest
-
 from mini_agent import Agent, ModelResponse, ScriptedBackend, ToolCall, ToolRegistry
 
 
 def calc_registry():
     r = ToolRegistry()
     r.register(
-        "add", "add two numbers",
-        {"type": "object", "properties": {"a": {"type": "number"}, "b": {"type": "number"}}, "required": ["a", "b"]},
+        "add",
+        "add two numbers",
+        {
+            "type": "object",
+            "properties": {"a": {"type": "number"}, "b": {"type": "number"}},
+            "required": ["a", "b"],
+        },
         lambda a, b: a + b,
     )
     r.register(
-        "boom", "always raises",
+        "boom",
+        "always raises",
         {"type": "object", "properties": {}},
         lambda: (_ for _ in ()).throw(RuntimeError("kaboom")),
     )
@@ -19,7 +23,9 @@ def calc_registry():
 
 
 def agent(script, **kw):
-    return Agent(backend=ScriptedBackend(script=list(script)), tools=calc_registry(), **kw)
+    return Agent(
+        backend=ScriptedBackend(script=list(script)), tools=calc_registry(), **kw
+    )
 
 
 def test_immediate_final_answer():
@@ -29,20 +35,24 @@ def test_immediate_final_answer():
 
 
 def test_single_tool_call_then_answer():
-    a = agent([
-        ModelResponse(tool_calls=(ToolCall("add", {"a": 2, "b": 3}),)),
-        ModelResponse(text="5"),
-    ])
+    a = agent(
+        [
+            ModelResponse(tool_calls=(ToolCall("add", {"a": 2, "b": 3}),)),
+            ModelResponse(text="5"),
+        ]
+    )
     res = a.run("2+3")
     assert res.output == "5"
     assert res.trace.tool_call_counts() == {"add": 1}
 
 
 def test_observation_is_fed_back_to_the_model():
-    backend = ScriptedBackend(script=[
-        ModelResponse(tool_calls=(ToolCall("add", {"a": 2, "b": 3}),)),
-        ModelResponse(text="done"),
-    ])
+    backend = ScriptedBackend(
+        script=[
+            ModelResponse(tool_calls=(ToolCall("add", {"a": 2, "b": 3}),)),
+            ModelResponse(text="done"),
+        ]
+    )
     Agent(backend=backend, tools=calc_registry()).run("2+3")
     second_call_messages = backend.calls[1]
     tool_msgs = [m for m in second_call_messages if m["role"] == "tool"]
@@ -50,11 +60,13 @@ def test_observation_is_fed_back_to_the_model():
 
 
 def test_bad_arguments_are_returned_to_the_model_not_raised():
-    backend = ScriptedBackend(script=[
-        ModelResponse(tool_calls=(ToolCall("add", {"a": 1}),)),   # missing b
-        ModelResponse(tool_calls=(ToolCall("add", {"a": 1, "b": 2}),)),
-        ModelResponse(text="3"),
-    ])
+    backend = ScriptedBackend(
+        script=[
+            ModelResponse(tool_calls=(ToolCall("add", {"a": 1}),)),  # missing b
+            ModelResponse(tool_calls=(ToolCall("add", {"a": 1, "b": 2}),)),
+            ModelResponse(text="3"),
+        ]
+    )
     res = Agent(backend=backend, tools=calc_registry()).run("go")
     assert res.ok and res.output == "3"
     obs = [e.content for e in res.trace.of_kind("observation")]
@@ -62,20 +74,24 @@ def test_bad_arguments_are_returned_to_the_model_not_raised():
 
 
 def test_unknown_tool_is_correctable():
-    backend = ScriptedBackend(script=[
-        ModelResponse(tool_calls=(ToolCall("subtract", {"a": 1}),)),
-        ModelResponse(text="recovered"),
-    ])
+    backend = ScriptedBackend(
+        script=[
+            ModelResponse(tool_calls=(ToolCall("subtract", {"a": 1}),)),
+            ModelResponse(text="recovered"),
+        ]
+    )
     res = Agent(backend=backend, tools=calc_registry()).run("go")
     assert res.ok
     assert "unknown tool" in res.trace.of_kind("observation")[0].content
 
 
 def test_tool_that_raises_is_distinguishable_from_bad_arguments():
-    backend = ScriptedBackend(script=[
-        ModelResponse(tool_calls=(ToolCall("boom", {}),)),
-        ModelResponse(text="handled"),
-    ])
+    backend = ScriptedBackend(
+        script=[
+            ModelResponse(tool_calls=(ToolCall("boom", {}),)),
+            ModelResponse(text="handled"),
+        ]
+    )
     res = Agent(backend=backend, tools=calc_registry()).run("go")
     obs = res.trace.of_kind("observation")[0].content
     assert obs.startswith("TOOL_FAILED: RuntimeError")
@@ -84,7 +100,9 @@ def test_tool_that_raises_is_distinguishable_from_bad_arguments():
 def test_step_budget_exhaustion_is_not_reported_as_an_answer():
     # A loop that never finalizes must NOT return the last model text as if it
     # were the answer — that is how a truncated run gets mistaken for success.
-    script = [ModelResponse(text="thinking", tool_calls=(ToolCall("add", {"a": 1, "b": 1}),))] * 3
+    script = [
+        ModelResponse(text="thinking", tool_calls=(ToolCall("add", {"a": 1, "b": 1}),))
+    ] * 3
     a = agent(script, max_steps=3, max_repeats=99)
     res = a.run("loop forever")
     assert not res.ok
@@ -123,23 +141,33 @@ def test_backend_failure_is_terminal():
 
 
 def test_multiple_tool_calls_in_one_step():
-    backend = ScriptedBackend(script=[
-        ModelResponse(tool_calls=(ToolCall("add", {"a": 1, "b": 1}), ToolCall("add", {"a": 2, "b": 2}))),
-        ModelResponse(text="both"),
-    ])
+    backend = ScriptedBackend(
+        script=[
+            ModelResponse(
+                tool_calls=(
+                    ToolCall("add", {"a": 1, "b": 1}),
+                    ToolCall("add", {"a": 2, "b": 2}),
+                )
+            ),
+            ModelResponse(text="both"),
+        ]
+    )
     res = Agent(backend=backend, tools=calc_registry()).run("go")
     assert res.ok and len(res.trace.tool_calls) == 2
 
 
 def test_state_resets_between_runs():
-    a = agent([
-        ModelResponse(tool_calls=(ToolCall("add", {"a": 1, "b": 1}),)),
-        ModelResponse(text="one"),
-        ModelResponse(tool_calls=(ToolCall("add", {"a": 1, "b": 1}),)),
-        ModelResponse(text="two"),
-    ], max_repeats=1)
+    a = agent(
+        [
+            ModelResponse(tool_calls=(ToolCall("add", {"a": 1, "b": 1}),)),
+            ModelResponse(text="one"),
+            ModelResponse(tool_calls=(ToolCall("add", {"a": 1, "b": 1}),)),
+            ModelResponse(text="two"),
+        ],
+        max_repeats=1,
+    )
     assert a.run("first").ok
-    assert a.run("second").ok   # identical call must not trip the limit across runs
+    assert a.run("second").ok  # identical call must not trip the limit across runs
 
 
 def test_system_prompt_is_first_message():

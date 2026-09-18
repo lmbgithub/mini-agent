@@ -2,6 +2,7 @@
 
 Run with:  python examples/research_agent.py
 """
+
 import sys
 from pathlib import Path
 
@@ -18,32 +19,46 @@ CORPUS = {
 tools = ToolRegistry()
 
 
-@tools.tool("search_docs", "Search internal documentation by keyword.", {
-    "type": "object",
-    "properties": {"keyword": {"type": "string"}},
-    "required": ["keyword"],
-})
+@tools.tool(
+    "search_docs",
+    "Search internal documentation by keyword.",
+    {
+        "type": "object",
+        "properties": {"keyword": {"type": "string"}},
+        "required": ["keyword"],
+    },
+)
 def search_docs(keyword: str) -> str:
     hits = [v for k, v in CORPUS.items() if keyword.lower() in k]
     return hits[0] if hits else "no results"
 
 
-@tools.tool("word_count", "Count words in a string.", {
-    "type": "object",
-    "properties": {"text": {"type": "string"}},
-    "required": ["text"],
-})
+@tools.tool(
+    "word_count",
+    "Count words in a string.",
+    {
+        "type": "object",
+        "properties": {"text": {"type": "string"}},
+        "required": ["text"],
+    },
+)
 def word_count(text: str) -> int:
     return len(text.split())
 
 
 def main() -> None:
     # Scripted so the example is reproducible without a model running.
-    backend = ScriptedBackend(script=[
-        ModelResponse(tool_calls=(ToolCall("search_docs", {"keyword": "retry"}),)),
-        ModelResponse(tool_calls=(ToolCall("word_count", {"text": CORPUS["retry"]}),)),
-        ModelResponse(text="Retries: exponential backoff from 200ms, max 5 attempts (11 words)."),
-    ])
+    backend = ScriptedBackend(
+        script=[
+            ModelResponse(tool_calls=(ToolCall("search_docs", {"keyword": "retry"}),)),
+            ModelResponse(
+                tool_calls=(ToolCall("word_count", {"text": CORPUS["retry"]}),)
+            ),
+            ModelResponse(
+                text="Retries: exponential backoff from 200ms, max 5 attempts (11 words)."
+            ),
+        ]
+    )
     agent = Agent(backend=backend, tools=tools, max_steps=5)
     result = agent.run("What is our retry policy, and how long is the doc line?")
 

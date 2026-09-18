@@ -4,6 +4,7 @@ A backend turns (messages, tool schemas) into a `ModelResponse`. The agent loop
 never sees provider wire formats, which is what makes the loop testable without
 a network or an API key.
 """
+
 from __future__ import annotations
 
 import json
@@ -11,8 +12,9 @@ import os
 import re
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 
 @dataclass(frozen=True)
@@ -59,7 +61,9 @@ class ScriptedBackend:
     ) -> ModelResponse:
         self.calls.append(list(messages))
         if not self.script:
-            raise RuntimeError("ScriptedBackend exhausted: the loop ran longer than scripted")
+            raise RuntimeError(
+                "ScriptedBackend exhausted: the loop ran longer than scripted"
+            )
         return self.script.pop(0)
 
 
@@ -104,7 +108,9 @@ class OllamaBackend:
     """Talks to a local Ollama server. Skipped in CI; used in the demo."""
 
     model: str = "qwen2.5:7b"
-    host: str = field(default_factory=lambda: os.environ.get("OLLAMA_HOST", "http://localhost:11434"))
+    host: str = field(
+        default_factory=lambda: os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+    )
     timeout: float = 120.0
 
     def complete(

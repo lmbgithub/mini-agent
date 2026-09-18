@@ -6,7 +6,12 @@ from mini_agent.trace import Trace
 
 def reg():
     r = ToolRegistry()
-    r.register("id", "identity", {"type": "object", "properties": {"x": {"type": "string"}}, "required": ["x"]}, lambda x: x)
+    r.register(
+        "id",
+        "identity",
+        {"type": "object", "properties": {"x": {"type": "string"}}, "required": ["x"]},
+        lambda x: x,
+    )
     return r
 
 
@@ -40,10 +45,12 @@ def test_render_truncates_long_content():
 
 
 def test_full_run_produces_a_readable_transcript():
-    backend = ScriptedBackend(script=[
-        ModelResponse(tool_calls=(ToolCall("id", {"x": "hello"}),)),
-        ModelResponse(text="hello"),
-    ])
+    backend = ScriptedBackend(
+        script=[
+            ModelResponse(tool_calls=(ToolCall("id", {"x": "hello"}),)),
+            ModelResponse(text="hello"),
+        ]
+    )
     res = Agent(backend=backend, tools=reg()).run("say hello")
     kinds = [e.kind for e in res.trace]
     assert kinds == ["user", "model", "tool_call", "observation", "final"]
